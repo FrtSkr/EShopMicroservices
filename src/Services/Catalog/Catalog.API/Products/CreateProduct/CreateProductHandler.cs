@@ -1,9 +1,4 @@
-﻿using System.Windows.Input;
-using BuildingBlocks.CQRS;
-using Catalog.API.Models;
-using MediatR;
-
-namespace Catalog.API.Products.CreateProduct;
+﻿namespace Catalog.API.Products.CreateProduct;
 
 public record CreateProductCommand(
     string Name,
@@ -15,7 +10,7 @@ public record CreateProductCommand(
 
 public record CreateProductResult(Guid Id);
 
-internal class CreateProductCommandHandler
+internal class CreateProductCommandHandler(IDocumentSession session)
     : ICommandHandler<CreateProductCommand, CreateProductResult>
 {
     public async Task<CreateProductResult> Handle(
@@ -24,9 +19,6 @@ internal class CreateProductCommandHandler
     )
     {
         // create Product entity from command object
-        // save to database
-        // return CreateProductResult result
-
         var product = new Product
         {
             Name = command.Name,
@@ -36,6 +28,11 @@ internal class CreateProductCommandHandler
             Price = command.Price
         };
 
-        return new CreateProductResult(Guid.NewGuid());
+        // save to database
+        session.Store(product);
+        await session.SaveChangesAsync(cancellationToken);
+
+        // return CreateProductResult result
+        return new CreateProductResult(product.Id);
     }
 }
