@@ -1,4 +1,5 @@
-﻿namespace Catalog.API.Products.CreateProduct;
+﻿
+namespace Catalog.API.Products.CreateProduct;
 
 public record CreateProductCommand(
     string Name,
@@ -10,7 +11,19 @@ public record CreateProductCommand(
 
 public record CreateProductResult(Guid Id);
 
-internal class CreateProductCommandHandler(IDocumentSession session)
+public class CreateProductCommandValidator : AbstractValidator<CreateProductCommand>
+{
+    public CreateProductCommandValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().WithMessage("Name is required.");
+        RuleFor(x => x.Category).NotEmpty().WithMessage("Category is required.");
+        RuleFor(x => x.Description).NotEmpty().WithMessage("Description is required.");
+        RuleFor(x => x.ImageFile).NotEmpty().WithMessage("ImageFile is required.");
+        RuleFor(x => x.Price).GreaterThan(0).WithMessage("Price must be greater than zero.");
+    }
+}
+
+internal class CreateProductCommandHandler(IDocumentSession session, IValidator<CreateProductCommand> validator)
     : ICommandHandler<CreateProductCommand, CreateProductResult>
 {
     public async Task<CreateProductResult> Handle(
@@ -18,6 +31,14 @@ internal class CreateProductCommandHandler(IDocumentSession session)
         CancellationToken cancellationToken
     )
     {
+        var result = validator.Validate(command);
+        var errors = result.Errors.Select(e => e.ErrorMessage).ToList();
+
+        if (errors.Any())
+        {
+            throw new ValidationException(errors.FirstOrDefault());
+        }
+
         // create Product entity from command object
         var product = new Product
         {
